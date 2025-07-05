@@ -1,5 +1,6 @@
 use std::mem;
 use std::sync::Mutex;
+use std::collections::LinkedList;
 
 #[derive(Debug, Clone)]
 enum KindsOfNeurons{
