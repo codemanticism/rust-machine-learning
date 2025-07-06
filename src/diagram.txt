@@ -1,0 +1,5 @@
+c0 -!+-c3 -F- c4 -!+-  1 --- c1-!-final_variable 
+| -?--|             |  c0 ------?-|
+c1 -!+-c3 -F- c4 -?--  final_variable-?-boolean
+c2 -?--|               32-----------!=-|
+

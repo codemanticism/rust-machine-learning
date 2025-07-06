@@ -1,0 +1,8 @@
+initial network
+until condition is met:
+	run the network
+	affect the parts of the network with the most importance generally (some probability involved)
+	if it is more benefitial, then apply the change
+	if not, then don't
+	remove the parts which almost don't matter
+	make it more abstract

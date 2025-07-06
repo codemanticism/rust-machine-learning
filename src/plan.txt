@@ -1,0 +1,10 @@
+- Create an initial network
+- Until condition is met
+	- Replace a piece of the network with a possibly more optimal replacement
+	- Check if that makes it better
+		- If it doesn't, revert the change
+		- If yes, then keep it
+
+	- Remove the practically unnecessary parts of the network, if needed
+
+	- Make it so that it has less constants, if needed
