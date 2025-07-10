@@ -1,10 +1,24 @@
 use rand::prelude::*;
+use rand::Rng; // 0.8.5
 pub use crate::synapse_network::*;
 pub static simplicity_weight = 0;
 pub static accuracy_weight = 0;
 enum Enum{
 	StartTheSearchFromWhere([usize; usize]),
 	NoSearch(usize)
+}
+struct ArrayNode{
+}
+enum Node{
+	TwoInputSynapseTypes(TwoInputSynapseTypes),
+	OneInputSynapseTypes(OneInputSynapseTypes),
+	RandomSynapse(RandomSynapse),
+	ArrayNode(ArrayNode),
+	ConstantNode(usize)
+}
+struct BooleanStruct{
+	which: &mut Vec<usize>,
+	starts: usize 
 }
 struct SynapseID{
 	synapse_index: usize,
@@ -19,7 +33,8 @@ fn check_if_not(synapse_network: &mut [Synapse], synapse_index: usize, output: u
 		}
 	}
 }
-fn function(synapse_network: &mut [Synapse], start_from_where: Enum, how_many_to_go: mut u32, vector_of_bools: &mut Vec<usize>){
+fn 
+fn function(synapse_network: &mut [Synapse], start_from_where: Enum, how_many_to_go: mut u32, boolean_struct: &mut BooleanStruct){
 	if(how_many_to_go == 0){
 		return;
 	}
@@ -37,6 +52,11 @@ fn function(synapse_network: &mut [Synapse], start_from_where: Enum, how_many_to
 		}, Enum::NoSearch(start_from_where_usize) => {
 			synapse_network_index = start_from_where_usize; 
 		} 
+	}
+	if boolean_vector.which.len() == 0 {
+		boolean_struct.starts = synapse_network_index;
+	}else{
+		boolean_struct.which.push(boolean_struct.starts - synapse_network_index);
 	}
 	vector_of_bools.push(synapse_network_index);
 	how_many_to_go--;
@@ -75,25 +95,321 @@ fn generate_random_number() -> u32{
 	}
 	i
 }
+/*
+pub struct LoopSynapse<'a, 'b>{
+	pub loop_variable_starts_at: Vec<f64>,  
+	pub at_the_end_of_the_loop: FunctionCall<'a>,
+	pub check_if_it_should_exit_the_loop: &'b [Synapse],
+	pub end_of_the_loop: usize,    
+}
+pub struct FunctionCall<'a>{
+	pub synapse_network: &'a [Synapse],
+	pub arguments: Vec<u32>,	
+}
+
+*/
+fn add_synapse(synapse_network: &mut LinkedList<Synapse>, number_of_vector_arguments: usize, number_of_number_arguments: usize, number_of_dependent_number_variables: &mut Vec<LinkedList<[usize; usize]>>, number_of_dependent_vector_variables: &mut Vec<LinkedList<[usize; usize]>>, should_it_be_vector: bool, where_constants_: Option<&mut Vector<usize>>) -> usize{
+	random -> x => 0 , x < 5 
+	match random{
+		0 => { //TwoInputSynapseTypes
+			let type_of_two_input_synapse: TwoInputSynapseTypes = random_one;
+			let mut output_neuron: usize = 0 as usize;
+			let mut usize_variable = 0;
+			let mut boolean: bool = false;
+			match should_it_be_vector{
+				false => { outer_loop: for i in 0..(number_of_dependent_number_variables.len()){
+					let mut condition = true;
+					for j in 0..(number_of_dependent_number_variables[i].len()){
+						if ( (synapse_network.len() - 1)) < number_of_dependent_number_variables[i][j][0] {
+							if ( (synapse_network.len() - 1)) > number_of_dependent_number_variables[i][j][1] {
+								condition = false;			
+							}  							
+						}
+						if condition{
+							output_neuron = (number_of_number_arguments + i) * 2;
+							usize_variable = i;	 		
+							break outer_loop;
+						}  
+					}
+				}
+				output_neuron = (number_of_number_arguments +  number_of_dependent_vector_variables.len()) * 2;
+				usize_variable = number_of_dependent_number_variables.len();
+				boolean = true;
+				},
+				true => { outer_loop: for i in 0..(number_of_dependent_vector_variables.len()){
+					let mut condition = true;
+					for j in 0..(number_of_dependent_vector_variables[i].len()){
+						if ( (synapse_network.len() - 1)) < number_of_dependent_vector_variables[i][j][0] {
+							if ( (synapse_network.len() - 1)) > number_of_dependent_vector_variables[i][j][1] {
+								condition = false;			
+							}  							
+						}
+						if condition{
+							output_neuron = ((number_of_number_arguments + i) * 2) + 1;	 		
+							usize_variable = i;
+							break outer_loop;
+						}  
+					}  
+				}
+				output_neuron = ((number_of_number_arguments +  number_of_dependent_vector_variables.len()) * 2) + 1;
+				usize_variable = number_of_dependent_vector_variables.len();
+				boolean = true;
+				}			
+			}
+			let initial_length = synapse_network.len();
+			synapse_network.push_to_the_start(Synapse::OtherSynapsesStruct{kind: Synapse::TwoInputSynapse{input_1: 0 as usize, input_2: 0 as usize}, output: output_neuron});
+			for i in 0..2{
+				if i == 1{
+					if should_it_be_vector{
+						let value = [synapse_network.len(); initial_length];
+						if boolean{
+							let mut linked_list: LinkedList<[usize; usize]> = LinkedList::New();
+							linked_list.push(value);
+					 		number_of_dependent_vector_variables.push(linked_list);
+						}else{
+					 		number_of_dependent_vector_variables[usize_variable].push(value);
+											
+						}
+					}else{
+						let value = [synapse_network.len(); initial_length];
+						if boolean{
+							let mut linked_list: LinkedList<[usize; usize]> = LinkedList::New();
+							linked_list.push(value);
+					 		number_of_dependent_number_variables.push(linked_list);
+						}else{
+					 		number_of_dependent_number_variables[usize_variable].push(value);
+											
+						}						
+					}
+			 	}
+				let return_value = add_synapse(synapse_network, number_of_vector_arguments, number_of_number_arguments, number_of_dependent_number_variables, number_of_dependent_vector_variables, should_it_be_vector);
+				match synapse_network[0] {
+					OtherSynapsesStruct(other_synapses_struct) => {
+						match other_synapses_struct.kind {
+							TwoInputSynapse(two_input_synapse) => {
+								if i == 0{
+									two_input_synapse.input_1 = return_value; 
+								}else{
+									two_input_synapse.input_2 = return_value;
+								}
+								;
+							},
+							_ => {
+								error!("something went wrong");
+							} 
+						}
+					}
+					, _ => {
+						error!("something went wrong");
+					}
+				}
+			}
+		},
+		1 => { //OneInputSynapseTypes
+			let type_of_two_input_synapse: OneInputSynapseTypes = random_one;
+			let mut output_neuron: usize = 0 as usize;
+			let mut usize_variable = 0;
+			let mut boolean: bool = false;
+			match should_it_be_vector{
+				false => { outer_loop: for i in 0..(number_of_dependent_number_variables.len()){
+					let mut condition = true;
+					for j in 0..(number_of_dependent_number_variables[i].len()){
+						if ( (synapse_network.len() - 1)) < number_of_dependent_number_variables[i][j][0] {
+							if ( (synapse_network.len() - 1)) > number_of_dependent_number_variables[i][j][1] {
+								condition = false;			
+							}  							
+						}
+						if condition{
+							output_neuron = (number_of_number_arguments + i) * 2;
+							usize_variable = i;	 		
+							break outer_loop;
+						}  
+					}
+				}
+				output_neuron = (number_of_number_arguments +  number_of_dependent_vector_variables.len()) * 2;
+				usize_variable = number_of_dependent_number_variables.len();
+				boolean = true;
+				},
+				true => { outer_loop: for i in 0..(number_of_dependent_vector_variables.len()){
+					let mut condition = true;
+					for j in 0..(number_of_dependent_vector_variables[i].len()){
+						if ( (synapse_network.len() - 1)) < number_of_dependent_vector_variables[i][j][0] {
+							if ( (synapse_network.len() - 1)) > number_of_dependent_vector_variables[i][j][1] {
+								condition = false;			
+							}  							
+						}
+						if condition{
+							output_neuron = ((number_of_number_arguments + i) * 2) + 1;	 		
+							usize_variable = i;
+							break outer_loop;
+						}  
+					}  
+				}
+				output_neuron = ((number_of_number_arguments +  number_of_dependent_vector_variables.len()) * 2) + 1;
+				usize_variable = number_of_dependent_vector_variables.len();
+				boolean = true;
+				}			
+			}
+			let initial_length = synapse_network.len();
+			synapse_network.push_to_the_start(Synapse::OtherSynapsesStruct{kind: Synapse::OneInputSynapse{input: 0 as usize}, output: output_neuron});
+			if should_it_be_vector{
+				let value = [synapse_network.len(); initial_length];
+				if boolean{
+					let mut linked_list: LinkedList<[usize; usize]> = LinkedList::New();
+					linked_list.push(value);
+			 		number_of_dependent_vector_variables.push(linked_list);
+				}else{
+			 		number_of_dependent_vector_variables[usize_variable].push(value);
+									
+				}
+			}else{
+				let value = [synapse_network.len(); initial_length];
+				if boolean{
+					let mut linked_list: LinkedList<[usize; usize]> = LinkedList::New();
+					linked_list.push(value);
+			 		number_of_dependent_number_variables.push(linked_list);
+				}else{
+			 		number_of_dependent_number_variables[usize_variable].push(value);
+									
+				}						
+			}
+			let return_value = add_synapse(synapse_network, number_of_vector_arguments, number_of_number_arguments, number_of_dependent_number_variables, number_of_dependent_vector_variables, should_it_be_vector);
+			match synapse_network[0] {
+				OtherSynapsesStruct(other_synapses_struct) => {
+					match other_synapses_struct.kind {
+						OneInputSynapse(two_input_synapse) => {
+							two_input_synapse.input = return_value; 
+						},
+						_ => {
+							error!("something went wrong");
+						} 
+					}
+				}
+				, _ => {
+					error!("something went wrong");
+				}
+			}
+			}
+		}, 
+		2 => { //RandomSypnase
+			let mut output_neuron: usize = 0 as usize;
+			let mut usize_variable = 0;
+			let mut boolean: bool = false;
+			match should_it_be_vector{
+				false => { outer_loop: for i in 0..(number_of_dependent_number_variables.len()){
+					let mut condition = true;
+					for j in 0..(number_of_dependent_number_variables[i].len()){
+						if ( (synapse_network.len() - 1)) < number_of_dependent_number_variables[i][j][0] {
+							if ( (synapse_network.len() - 1)) > number_of_dependent_number_variables[i][j][1] {
+								condition = false;			
+							}  							
+						}
+						if condition{
+							output_neuron = (number_of_number_arguments + i) * 2;
+							usize_variable = i;	 		
+							break outer_loop;
+						}  
+					}
+				}
+				output_neuron = (number_of_number_arguments +  number_of_dependent_vector_variables.len()) * 2;
+				usize_variable = number_of_dependent_number_variables.len();
+				boolean = true;
+				},
+				true => { outer_loop: for i in 0..(number_of_dependent_vector_variables.len()){
+					let mut condition = true;
+					for j in 0..(number_of_dependent_vector_variables[i].len()){
+						if ( (synapse_network.len() - 1)) < number_of_dependent_vector_variables[i][j][0] {
+							if ( (synapse_network.len() - 1)) > number_of_dependent_vector_variables[i][j][1] {
+								condition = false;			
+							}  							
+						}
+						if condition{
+							output_neuron = ((number_of_number_arguments + i) * 2) + 1;	 		
+							usize_variable = i;
+							break outer_loop;
+						}  
+					}  
+				}
+				output_neuron = ((number_of_number_arguments +  number_of_dependent_vector_variables.len()) * 2) + 1;
+				usize_variable = number_of_dependent_vector_variables.len();
+				boolean = true;
+				}			
+			}
+			synapse_network.push_to_the_start(Synapse::OtherSynapsesStruct{kind: Synapse::RandomSynapse{}, output: output_neuron});
+						
+		},
+		3 => { //ArraySynapse
+			
+		},
+		4 => { //ConstantSynapse
+			let mut output_neuron: usize = 0 as usize;
+			let mut usize_variable = 0;
+			let mut boolean: bool = false;
+			match should_it_be_vector{
+				false => { outer_loop: for i in 0..(number_of_dependent_number_variables.len()){
+					let mut condition = true;
+					for j in 0..(number_of_dependent_number_variables[i].len()){
+						if ( (synapse_network.len() - 1)) < number_of_dependent_number_variables[i][j][0] {
+							if ( (synapse_network.len() - 1)) > number_of_dependent_number_variables[i][j][1] {
+								condition = false;			
+							}  							
+						}
+						if condition{
+							output_neuron = (number_of_number_arguments + i) * 2;
+							usize_variable = i;	 		
+							break outer_loop;
+						}  
+					}
+				}
+				output_neuron = (number_of_number_arguments +  number_of_dependent_vector_variables.len()) * 2;
+				usize_variable = number_of_dependent_number_variables.len();
+				boolean = true;
+				},
+				true => { outer_loop: for i in 0..(number_of_dependent_vector_variables.len()){
+					let mut condition = true;
+					for j in 0..(number_of_dependent_vector_variables[i].len()){
+						if ( (synapse_network.len() - 1)) < number_of_dependent_vector_variables[i][j][0] {
+							if ( (synapse_network.len() - 1)) > number_of_dependent_vector_variables[i][j][1] {
+								condition = false;			
+							}  							
+						}
+						if condition{
+							output_neuron = ((number_of_number_arguments + i) * 2) + 1;	 		
+							usize_variable = i;
+							break outer_loop;
+						}  
+					}  
+				}
+				output_neuron = ((number_of_number_arguments +  number_of_dependent_vector_variables.len()) * 2) + 1;
+				usize_variable = number_of_dependent_vector_variables.len();
+				boolean = true;
+				}			
+			}
+			synapse_network.push_to_the_start(Synapse::OtherSynapsesStruct{kind: Synapse::ConstantSynapse{}, output: output_neuron});			
+		}
+	}
+}
+/*
+	+ log 2(x)
+	- log 2(x)
+	
+	TwoInputSynapse
+	OneInputSynapse
+	ArraySynapse
+	ConstantSynapse
+	RandomSynapse
+*/
 fn train(minimum_score: u32, synapse_network: &mut [Synapse]){
 	let mut variables = Vec<bool>;
 	while calculate_score() < minimum_score{
-		let mut number_vector: Vec<f64> = Vec::New();
-		let mut option: Some(SynapseID) = Some(SynapseID{
-			synapse_index: 0 as usize,
-			synapse_network: synapse_network
-		});
-		let mut list_of_vector_memories = LIST_OF_VECTOR_MEMORIES.lock().unwrap(); 
-		list_of_vector_memories.push(Vec::New());
-		run_synapse_network(synapse_network, list_of_vector_memories.len() - 1, &mut number_vector, &mut option);
-		match option {
-			Option::Some => {
-				function(option.synapse_network, Enum::NoSearch(option.synapse_index), generate_random_number())
-			}, Option::None => {
-				error!("QUIT");				
-			}
-		}
-		drop(list_of_vector_memories);	
-						
+		for i in 0..generate_random_number{
+			let mut synapse_tree: Vec<Node> = Vec::New();
+			add_node_to_operation_tree(&mut synapse_tree, 0);
+			try();
+		}		
+		if score_better{
+			apply_difference();
+		}						
+
 	}
 }
