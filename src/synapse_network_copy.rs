@@ -1,4 +1,3 @@
-use std::collections::LinkedList;
 use std::mem;
 use std::sync::Mutex;
 
@@ -8,14 +7,14 @@ pub enum KindsOfNeurons{
 	Scalar(f64),
 }
 pub struct FunctionCall<'a>{
-	pub synapse_network: &'a LinkedList<Synapse>,
+	pub synapse_network: &'a [Synapse],
 	pub arguments: Vec<u32>,	
 }
 pub struct LoopSynapse<'a, 'b>{
 	pub loop_variable_starts_at: Vec<f64>,  
 	pub at_the_end_of_the_loop: FunctionCall<'a>,
-	pub check_if_it_should_exit_the_loop: &'b LinkedList<Synapse>,
-	pub synapse_network_to_repeat: LinkedList<Synapse>,    
+	pub check_if_it_should_exit_the_loop: &'b [Synapse],
+	pub end_of_the_loop: usize,    
 }
 pub struct TwoInputSynapse{
 	pub input_1: u32,
@@ -64,13 +63,14 @@ pub enum OneInputSynapseTypes{
 	Floor,
 }
 pub static LIST_OF_VECTOR_MEMORIES: Mutex<Vec<Vec<Vec<f64>>>> = Mutex::new(Vec::new());
-pub fn execute_synapse<'a>(vector_memory: usize, number_memory: &'a mut [f64], synapse: &Synapse){
-	match synapse {
+pub fn execute_synapse<'a>(vector_memory: usize, number_memory: &'a mut [f64], synapse_index: usize, synapse_network: &[Synapse]) -> usize{
+	match &synapse_network[synapse_index] {
 		Synapse::OtherSynapsesStruct(other_synapse) => {
-			execute_other_synapse(vector_memory, number_memory, &other_synapse);
+			execute_other_synapse(vector_memory, number_memory, other_synapse);
+			synapse_index + 1
 		},
 		Synapse::LoopSynapse(_) => {
-			execute_loop_synapse(vector_memory, number_memory, synapse);
+			execute_loop_synapse(vector_memory, number_memory, synapse_network, synapse_index)
 		} 
 	}
 }
@@ -106,12 +106,14 @@ pub fn execute_other_synapse<'a>(vector_memory: usize, number_memory: &'a mut  [
 		OtherSynapses::ArraySynapse(_) => execute_array_synapse(vector_memory, number_memory, &synapse),
 	}
 }
-pub fn execute_loop_synapse<'a>(vector_memory: usize, number_memory: &'a mut [f64], synapse: &Synapse){
+pub fn execute_loop_synapse<'a>(vector_memory: usize, number_memory: &'a mut [f64], synapse_network: &[Synapse], synapse_index: usize) -> usize{
+	let synapse = &(synapse_network[synapse_index]);
 	match synapse {
 		 Synapse::LoopSynapse(loop_synapse) => {
+			let slice = &synapse_network[(synapse_index + 1)..(loop_synapse.end_of_the_loop)];
 			let mut loop_variable = loop_synapse.loop_variable_starts_at.clone();
 			loop{
-				run_synapse_network(&loop_synapse.synapse_network_to_repeat, vector_memory, number_memory);
+				run_synapse_network(slice, vector_memory, number_memory);
 				let mut new_number_memory: Vec<f64> = Vec::new();
 				let mut list_of_vector_memories = LIST_OF_VECTOR_MEMORIES.lock().unwrap();
 				let mut len = list_of_vector_memories.len();
@@ -144,7 +146,7 @@ pub fn execute_loop_synapse<'a>(vector_memory: usize, number_memory: &'a mut [f6
 					}
 				}
 				match run_synapse_network(loop_synapse.at_the_end_of_the_loop.synapse_network, len - 1, &mut new_number_memory){
-					KindsOfNeurons::Scalar(_) => {
+					KindsOfNeurons::Scalar(scalar) => {
 						panic!("wrong last synapse");
 					}, KindsOfNeurons::Vector(vector) => {
 						loop_variable = list_of_vector_memories[len - 1][vector].clone();
@@ -164,13 +166,14 @@ pub fn execute_loop_synapse<'a>(vector_memory: usize, number_memory: &'a mut [f6
 							break;		
 						}
 					}, 
-					KindsOfNeurons::Vector(_) => {
+					KindsOfNeurons::Vector(vector) => {
 						panic!("invalid");
 					}
 				}
 				list_of_vector_memories.pop();
 				drop(list_of_vector_memories);
 			}
+			loop_synapse.end_of_the_loop
 		}, Synapse::OtherSynapsesStruct(_) => {
 			panic!("execute_loop_synapse: Called non-loop");			
 		}
@@ -629,24 +632,18 @@ pub fn convert_synapse_to_other_synapses_struct(synapse: &Synapse) -> &OtherSyna
 		}
 	}
 }
-pub fn run_synapse_network(synapse_network: &LinkedList<Synapse>, vector_memory: usize, number_memory: &mut [f64]) -> KindsOfNeurons{
-	let mut iter = synapse_network.iter();
-	let mut last = None;
-	while let Some(value) = iter.next(){
-		execute_synapse(vector_memory, number_memory, value);
-		last = Some(value);
+pub fn run_synapse_network(synapse_network: &[Synapse], vector_memory: usize, number_memory: &mut [f64]) -> KindsOfNeurons{
+	let mut i = 0;
+	let length = synapse_network.len();
+	while i < length{
+		i = execute_synapse(vector_memory, number_memory, i, synapse_network);
 	}
-	match last{
-		Some(x) => {
-			match x {
-				Synapse::OtherSynapsesStruct(other_synapses_struct) => {
-					return read_the_value_at!(other_synapses_struct.output, vector_memory, number_memory);
-				}, Synapse::LoopSynapse(_) => {
-					panic!("Invalid last synapse");
-				}			
-			}
-		}, None => {
-			panic!("synapse network length 0");
+	match synapse_network.last().unwrap() {
+		Synapse::OtherSynapsesStruct(other_synapses_struct) => {
+			return read_the_value_at!(other_synapses_struct.output, vector_memory, number_memory);
+		}, Synapse::LoopSynapse(_) => {
+			panic!("Invalid last synapse");
 		}
-	}
+ 				
+	}	
 }

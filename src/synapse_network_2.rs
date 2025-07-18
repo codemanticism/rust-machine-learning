@@ -3,6 +3,22 @@ use std::mem;
 use std::sync::Mutex;
 
 #[derive(Debug, Clone)]
+pub struct PatchVector{
+	pub vector: LinkedList<usize>,
+	pub what_patch: usize,
+	pub vector_arguments: Vec<Vec<f64>>,
+	pub number_arguments: Vec<f64>,
+	pub cardinal_arguments: Vec<usize>
+}
+pub struct Patch{
+	pub input: Vec<usize>,
+	pub output: usize,
+	pub patch: LinkedList<Synapse>,	
+}
+pub struct LoopRanking{
+	pub ranking: Vec<f64>,
+	pub index_of_the_loop_synapse: usize,
+}
 pub enum KindsOfNeurons{
 	Vector(usize),
 	Scalar(f64),
@@ -32,8 +48,20 @@ pub struct ConstantSynapse{
 pub struct RandomSynapse{
 }
 pub struct ArraySynapse{
-	pub integer_neuron: u32,
+	pub cardinal_neuron: usize,
 	pub vector_neuron: u32,
+}
+pub struct WriteSynapse{
+	pub cardinal_neuron: usize,
+	pub number_neuron: u32,
+}
+pub struct PurelyCardinalSynapse{
+	pub kind: PurelyCardinalSynapseKind,
+	pub cardinal_neuron: usize
+}
+pub enum PurelyCardinalSynapseKind{
+	ForwardSynapse,
+	BackwardsSynapse
 }
 pub enum OtherSynapses{
 	TwoInputSynapse(TwoInputSynapse),
@@ -41,6 +69,7 @@ pub enum OtherSynapses{
 	ConstantSynapse(ConstantSynapse),
 	RandomSynapse(RandomSynapse),
 	ArraySynapse(ArraySynapse),
+	WriteSynapse(WriteSynapse),
 }
 pub struct OtherSynapsesStruct{
 	pub output: u32,
@@ -48,7 +77,8 @@ pub struct OtherSynapsesStruct{
 }
 pub enum Synapse{
 	OtherSynapsesStruct(OtherSynapsesStruct),
-	LoopSynapse(LoopSynapse<'static, 'static>)
+	LoopSynapse(LoopSynapse<'static, 'static>),
+	PurelyCardinalSynapse(PurelyCardinalSynapse)
 }
 #[derive(Debug, Copy, Clone)]
 pub enum TwoInputSynapseTypes{
@@ -63,15 +93,23 @@ pub enum OneInputSynapseTypes{
 	IsNegative,
 	Floor,
 }
-pub static LIST_OF_VECTOR_MEMORIES: Mutex<Vec<Vec<Vec<f64>>>> = Mutex::new(Vec::new());
-pub fn execute_synapse<'a>(vector_memory: usize, number_memory: &'a mut [f64], synapse: &Synapse){
+pub static LIST_OF_VECTOR_MEMORIES: Mutex<Vec<Vec<usize>>>> = Mutex::new(Vec::new());
+pub static LIST_OF_VECTORS: Mutex<Vec<f64>>> = Mutex::new(Vec::new());
+pub fn execute_synapse<'a>(vector_memory: usize, number_memory: &'a mut [f64], cardinal_memory: &'a mut [usize], synapse: &Synapse, ranking: Option<&mut Vector<usize>>){
 	match synapse {
 		Synapse::OtherSynapsesStruct(other_synapse) => {
-			execute_other_synapse(vector_memory, number_memory, &other_synapse);
+			execute_other_synapse(vector_memory, number_memory, cardinal_memory, &other_synapse);
 		},
 		Synapse::LoopSynapse(_) => {
-			execute_loop_synapse(vector_memory, number_memory, synapse);
-		} 
+			execute_loop_synapse(vector_memory, number_memory, cardinal_memory, synapse, ranking);
+		},
+		Synapse::PurelyCardinalSynapse(purely_cardinal_synapse) => {
+			if purely_cardinal_synapse.kind == ForwardSynapse{
+				cardinal_memory[purely_cardinal_synapse.cardinal_neuron]++;
+			}else{ //BackwardsSynapse
+				cardinal_memory[purely_cardinal_synapse.cardinal_neuron]--;
+			}
+		}
 	}
 }
 #[macro_export]
@@ -97,21 +135,24 @@ pub fn as_other_synapse(synapse: Synapse) -> OtherSynapsesStruct{
 		}
 	}
 }
-pub fn execute_other_synapse<'a>(vector_memory: usize, number_memory: &'a mut  [f64], synapse: &OtherSynapsesStruct){
+pub fn execute_other_synapse<'a>(vector_memory: usize, number_memory: &'a mut  [f64], cardinal_memory: &'a mut [usize], Vesynapse: &OtherSynapsesStruct){
 	match synapse.kind {
 		OtherSynapses::TwoInputSynapse(_) => execute_two_input_synapse(vector_memory, number_memory, &synapse),
 		OtherSynapses::OneInputSynapse(_) => execute_one_input_synapse(vector_memory, number_memory, &synapse),
 		OtherSynapses::ConstantSynapse(_) => execute_constant_synapse(vector_memory, number_memory, &synapse),
 		OtherSynapses::RandomSynapse(_) => execute_random_synapse(vector_memory, number_memory, &synapse),
-		OtherSynapses::ArraySynapse(_) => execute_array_synapse(vector_memory, number_memory, &synapse),
+		OtherSynapses::ArraySynapse(_) => execute_array_synapse(vector_memory, number_memory, cardinal_memory, &synapse),
+		OtherSynapses::WriteSynapse(_) => execute_write_synapse(vector_memory, number_memory, cardinal_memory, &synapse),
+		OtherSynapses::BackwardsSynapse(_) => execute_backwards_synapse(cardinal_memory, &synapse), 
+		OtherSynapses::ForwardSynapse(_) => execute_forward_synapse(cardinal_memory, &synapse)
 	}
 }
-pub fn execute_loop_synapse<'a>(vector_memory: usize, number_memory: &'a mut [f64], synapse: &Synapse){
+pub fn execute_loop_synapse<'a>(vector_memory: usize, number_memory: &'a mut [f64], cardinal_memory: &'a mut [usize], synapse: &Synapse, ranking: Option<&mut Vector<usize>>){
 	match synapse {
 		 Synapse::LoopSynapse(loop_synapse) => {
 			let mut loop_variable = loop_synapse.loop_variable_starts_at.clone();
 			loop{
-				run_synapse_network(&loop_synapse.synapse_network_to_repeat, vector_memory, number_memory);
+				run_synapse_network(&loop_synapse.synapse_network_to_repeat, vector_memory, number_memory, cardinal_memory, ranking);
 				let mut new_number_memory: Vec<f64> = Vec::new();
 				let mut list_of_vector_memories = LIST_OF_VECTOR_MEMORIES.lock().unwrap();
 				let mut len = list_of_vector_memories.len();
@@ -134,16 +175,18 @@ pub fn execute_loop_synapse<'a>(vector_memory: usize, number_memory: &'a mut [f6
 						let variable = read_the_value_at!(constant, &vector_memory, &number_memory);
 						match variable {
 							KindsOfNeurons::Vector(vect) => {
+								list_of_vectors = LIST_OF_VECTORS.lock().unwrap();
 								for j in 0..(list_of_vector_memories[vector_memory][vect].len()){
-									list_of_vector_memories[len - 1][i][j] = list_of_vector_memories[vector_memory][vect][j];
+									list_of_vectors[list_of_vector_memories[len - 1][i]][j] = list_of_vectors[list_of_vector_memories[vector_memory][vect]][j];
 								}
+								drop(list_of_vectors);
 							}, _ => {
 								panic!("");
 							}
 						}
 					}
 				}
-				match run_synapse_network(loop_synapse.at_the_end_of_the_loop.synapse_network, len - 1, &mut new_number_memory){
+				match run_synapse_network(loop_synapse.at_the_end_of_the_loop.synapse_network, len - 1, &mut new_number_memory, Vec::New()){
 					KindsOfNeurons::Scalar(_) => {
 						panic!("wrong last synapse");
 					}, KindsOfNeurons::Vector(vector) => {
@@ -158,7 +201,7 @@ pub fn execute_loop_synapse<'a>(vector_memory: usize, number_memory: &'a mut [f6
 				let index_2 = list_of_vector_memories[vector_memory].len();
 				list_of_vector_memories[len - 1][index_2 - 1] = loop_variable.clone();
 				//TODO: This is something that I need to fix...
-				match run_synapse_network(loop_synapse.check_if_it_should_exit_the_loop, len - 1, &mut second_number_memory){
+				match run_synapse_network(loop_synapse.check_if_it_should_exit_the_loop, len - 1, &mut second_number_memory, Vec::New()){
 					KindsOfNeurons::Scalar(scalar) => {
 						if scalar < 1_f64 {
 							break;		
@@ -177,35 +220,44 @@ pub fn execute_loop_synapse<'a>(vector_memory: usize, number_memory: &'a mut [f6
 		 
 	}
 }
-pub fn get_array_synapse_kind_property(synapse: &OtherSynapsesStruct) -> &ArraySynapse{
+pub fn execute_array_synapse(vector_memory: usize, number_memory: &'a mut [f64], cardinal_memory: &'a mut [usize], synapse: &OtherSynapsesStruct) {
 	match synapse.kind {
-		OtherSynapses::ArraySynapse(ref arr) => {
-			arr
-		}, _ => {
-			panic!("Get kind property error");
-		}
-	}
-}
-pub fn execute_array_synapse<'a>(vector_memory: usize, number_memory: &'a mut [f64], synapse: &OtherSynapsesStruct) {
-	let mut list_of_vector_memories = LIST_OF_VECTOR_MEMORIES.lock().unwrap();
-	let index_neuron = read_the_value_at!(get_array_synapse_kind_property(synapse).vector_neuron, vector_memory, number_memory);
-	let vector_neuron = read_the_value_at!(get_array_synapse_kind_property(synapse).vector_neuron, vector_memory, number_memory);
-	match index_neuron {
-		KindsOfNeurons::Scalar(some_scalar) => {
-			match vector_neuron {
-				KindsOfNeurons::Vector(some_vector) => {
-					let variable = list_of_vector_memories[vector_memory][some_vector][some_scalar as usize];
-					set_output_neuron_to(&mut list_of_vector_memories[vector_memory], number_memory, synapse, KindsOfNeurons::Scalar(variable));
-				}, KindsOfNeurons::Scalar(_) => {
-					panic!("execute_array_synapse");
+		OtherSynapses::ArraySynapse(array_synapse) => {
+			let neuron = read_the_value_at!( array_synapse.vector_neuron, vector_memory, number_memory );
+			match neuron {
+				KindsOfNeurons::Scalar(_) => {
+					panic!("Crashed");	
+				}, KindsOfNeurons::Vector(vctr) => {
+					 number_memory[synapse.output / 2] = vctr[cardinal_memory[array_synapse.cardinal_neuron]];		
 				}
 			}
-		}, KindsOfNeurons::Vector(_) => {
-			panic!("execute_array_synapse");
 		}
 	}
-	drop(list_of_vector_memories);	
+		
 }
+pub fn execute_write_synapse(vector_memory: usize, number_memory: &'a mut [f64], cardinal_memory: &'a mut [usize], synapse: &OtherSynapsesStruct) {
+	match synapse.kind {
+		OtherSynapses::WriteSynapse(write_synapse) => {
+			let mut list_of_vector_memories = LIST_OF_VECTOR_MEMORIES.lock().unwrap();
+			let number = read_the_value_at!( array_synapse.number_neuron, vector_memory, number_memory );
+			match number{
+				KindsOfNeurons::Scalar(scalar) => {
+					list_of_vectors[list_of_vector_memories[vector_memory][synapse.output / 2]][cardinal_memory[synapse.cardinal_neuron]] = *number;
+					drop(list_of_vector_memories);					
+				}, KindsOfNeurons::Vector(_) => {
+					panic!("Crashed");
+				}
+			}
+		}
+	}
+		
+}
+pub fn execute_backwards_synapse(cardinal_memory: &'a mut [usize], synapse: &OtherSynapsesStruct) {
+	cardinal_memory[synapse.output as usize] -= 1;		
+}
+pub fn execute_forward_synapse(cardinal_memory: &'a mut [usize], synapse: &OtherSynapsesStruct) {
+	cardinal_memory[synapse.output as usize] += 1;		
+} 
 pub fn get_two_input_synapse_kind_property(synapse: &OtherSynapsesStruct) -> &TwoInputSynapse{
 	match synapse.kind{
 		OtherSynapses::TwoInputSynapse(ref arr) => {
@@ -271,7 +323,7 @@ pub fn get_two_input_synapse_kind_property(synapse: &OtherSynapsesStruct) -> &Tw
 }*/
 pub fn execute_two_input_synapse<'a>(
     vector_memory: usize,
-    number_memory: &'a mut [f64],
+    number_memory: &'a mut [f64], 
     synapse: &OtherSynapsesStruct,
 ) {
     let input_1 = read_the_value_at!(
@@ -340,14 +392,18 @@ pub fn execute_two_input_synapse<'a>(
                    	for i in 0..(length2){
                    		if already_exceeded_original_length {
 							let list_of_vector_memories_new = LIST_OF_VECTOR_MEMORIES.lock().unwrap();
-                   			let result = execution_binary_operation( list_of_vector_memories_new[vector_memory][index_to_smaller][i], list_of_vector_memories_new[vector_memory][index_to_bigger][i], operation);
+							let list_of_vectors = LIST_OF_VECTORS.lock().unwrap();
+                   			let result = execution_binary_operation( list_of_vectors[ list_of_vector_memories_new[vector_memory][index_to_smaller]][i], list_of_vectors[list_of_vector_memories_new[vector_memory][index_to_bigger]][i], operation);
+							mem::drop(list_of_vectors);
 							mem::drop(list_of_vector_memories_new);
 							let mut list_of_vector_memories_2 = LIST_OF_VECTOR_MEMORIES.lock().unwrap();
 							adding_to_output_neuron(&mut list_of_vector_memories_2[vector_memory], synapse, result);
 							mem::drop(list_of_vector_memories_2);	
                    		}else{
 							let list_of_vector_memories_new = LIST_OF_VECTOR_MEMORIES.lock().unwrap();
-                   			let result = execution_binary_operation( list_of_vector_memories_new[vector_memory][index_to_smaller][i], list_of_vector_memories_new[vector_memory][index_to_bigger][i], operation);
+							let list_of_vectors = LIST_OF_VECTORS.lock().unwrap();
+                   			let result = execution_binary_operation( list_of_vectors[ list_of_vector_memories_new[vector_memory][index_to_smaller]][i], list_of_vectors[list_of_vector_memories_new[vector_memory][index_to_bigger]][i], operation);
+							mem::drop(list_of_vectors);
 							mem::drop(list_of_vector_memories_new);
 							let mut list_of_vector_memories_2 = LIST_OF_VECTOR_MEMORIES.lock().unwrap();
                    			set_nth_value_of_output_neuron_to(i, &mut list_of_vector_memories_2[vector_memory], synapse, result);
@@ -357,14 +413,18 @@ pub fn execute_two_input_synapse<'a>(
 					for i in (length2)..(length1) {
                    		if already_exceeded_original_length {
 							let list_of_vector_memories_new = LIST_OF_VECTOR_MEMORIES.lock().unwrap();
-                   			let result = list_of_vector_memories_new[vector_memory][index_to_bigger][i];
+							let list_of_vectors = LIST_OF_VECTORS.lock().unwrap();
+                   			let result = list_of_vectors[list_of_vector_memories_new[vector_memory][index_to_bigger]][i];
+							mem::drop(list_of_vectors);
 							mem::drop(list_of_vector_memories_new);
 							let mut list_of_vector_memories_2 = LIST_OF_VECTOR_MEMORIES.lock().unwrap();
                    			adding_to_output_neuron(&mut list_of_vector_memories_2[vector_memory], synapse, result);	
 							mem::drop(list_of_vector_memories_2);
                    		}else{
 							let list_of_vector_memories_new = LIST_OF_VECTOR_MEMORIES.lock().unwrap();
-                   			let result = list_of_vector_memories_new[vector_memory][index_to_bigger][i];
+							let list_of_vectors = LIST_OF_VECTORS.lock().unwrap();
+                   			let result = list_of_vectors[list_of_vector_memories_new[vector_memory][index_to_bigger]][i];
+                   			mem::drop(list_of_vectors);
 							mem::drop(list_of_vector_memories_new);
 							let mut list_of_vector_memories_2 = LIST_OF_VECTOR_MEMORIES.lock().unwrap();
                    			set_nth_value_of_output_neuron_to(i, &mut list_of_vector_memories_2[vector_memory], synapse, result);
@@ -381,14 +441,18 @@ pub fn execute_two_input_synapse<'a>(
                    	for i in 0..(list_of_vector_memories[vector_memory][index_to_vector_1].len()){
                    		if already_exceeded_original_length {
 							let list_of_vector_memories_new = LIST_OF_VECTOR_MEMORIES.lock().unwrap();                   		
-                   			let result = execution_binary_operation( list_of_vector_memories_new[vector_memory][index_to_vector_1][i], scalar_2, operation);
+							let list_of_vectors = LIST_OF_VECTORS.lock().unwrap();
+                   			let result = execution_binary_operation( list_of_vectors[list_of_vector_memories_new[vector_memory][index_to_vector_1]][i], scalar_2, operation);
+							mem::drop(list_of_vectors);
 							mem::drop(list_of_vector_memories_new);
 							let mut list_of_vector_memories_2 = LIST_OF_VECTOR_MEMORIES.lock().unwrap(); 
                    			adding_to_output_neuron(&mut list_of_vector_memories_2[vector_memory], synapse, result);	
                    			mem::drop(list_of_vector_memories_2);
                    		}else{
 							let list_of_vector_memories_new = LIST_OF_VECTOR_MEMORIES.lock().unwrap();                   		
-                   			let result = execution_binary_operation( list_of_vector_memories_new[vector_memory][index_to_vector_1][i], scalar_2, operation);
+							let list_of_vectors = LIST_OF_VECTORS.lock().unwrap();
+                   			let result = execution_binary_operation( list_of_vectors[list_of_vector_memories_new[vector_memory][index_to_vector_1]][i], scalar_2, operation);
+							mem::drop(list_of_vectors);
 							mem::drop(list_of_vector_memories_new);
 							let mut list_of_vector_memories_2 = LIST_OF_VECTOR_MEMORIES.lock().unwrap();
                    			set_nth_value_of_output_neuron_to(i, &mut list_of_vector_memories_2[vector_memory], synapse, result);
@@ -473,7 +537,9 @@ pub fn execute_one_input_synapse<'a>(vector_memory: usize, number_memory: &'a mu
 			for i in 0..len{
 //vector_memory: &mut Vec<Vec<f64>>, synapse: &OtherSynapsesStruct, value: f64
 				let list_of_vector_memories_new = LIST_OF_VECTOR_MEMORIES.lock().unwrap();
-				let result = executing_one_synapse_operation(list_of_vector_memories_new[vector_memory][int][i], *typ);
+				let list_of_vectors = LIST_OF_VECTORS.lock().unwrap();
+				let result = executing_one_synapse_operation(list_of_vectors[list_of_vector_memories_new[vector_memory][int]][i], *typ);
+				mem::drop(list_of_vectors);
 				mem::drop(list_of_vector_memories_new);
 				let mut list_of_vector_memories_2 = LIST_OF_VECTOR_MEMORIES.lock().unwrap();
 				set_nth_value_of_output_neuron_to(i, &mut list_of_vector_memories_2[vector_memory], synapse, result);
@@ -486,7 +552,9 @@ pub fn execute_one_input_synapse<'a>(vector_memory: usize, number_memory: &'a mu
 				mem::drop(list_of_vector_memories_new);
 				for i in another_length..length{
 					let list_of_vector_memories_new = LIST_OF_VECTOR_MEMORIES.lock().unwrap();
-					let result = executing_one_synapse_operation(list_of_vector_memories_new[vector_memory][int][i], *typ);
+					let list_of_vectors = LIST_OF_VECTORS.lock().unwrap();
+					let result = executing_one_synapse_operation(list_of_vectors[list_of_vector_memories_new[vector_memory][int]][i], *typ);
+					mem::drop(list_of_vectors);
 					mem::drop(list_of_vector_memories_new);
 					let mut list_of_vector_memories_2 = LIST_OF_VECTOR_MEMORIES.lock().unwrap();
 					adding_to_output_neuron(&mut list_of_vector_memories_2[vector_memory], synapse, result);
@@ -573,14 +641,20 @@ pub fn execution_binary_operation(input_1: f64, input_2: f64, operation: TwoInpu
 		},
 	}						
 }
-pub fn get_length_of_output_neuron<'a>(vector_memory: &'a mut  Vec<Vec<f64>>, synapse: &OtherSynapsesStruct) -> usize{
-	vector_memory[(synapse.output / 2) as usize].len()
+pub fn get_length_of_output_neuron<'a>(vector_memory: &'a mut  Vec<usize>, synapse: &OtherSynapsesStruct) -> usize{
+	let mut list_of_vectors = LIST_OF_VECTORS.lock().unwrap();
+	list_of_vectors[vector_memory[(synapse.output / 2) as usize]].len()
+	drop(list_of_vectors);
 }
-pub fn pop_output_neuron<'a>(vector_memory: &'a mut  Vec<Vec<f64>>, synapse: &OtherSynapsesStruct){
-	vector_memory[(synapse.output / 2) as usize].pop(); 	
+pub fn pop_output_neuron<'a>(vector_memory: &'a mut  Vec<usize>, synapse: &OtherSynapsesStruct){
+	let mut list_of_vectors  = LIST_OF_VECTORS.lock().unwrap();
+	list_of_vectors[vector_memory[(synapse.output / 2) as usize]].pop(); 	
+	drop(list_of_vectors);
 }
 pub fn set_nth_value_of_output_neuron_to<'a>(n: usize, vector_memory: &'a mut Vec<Vec<f64>>, synapse: &OtherSynapsesStruct, value: f64){
-	vector_memory[(synapse.output / 2) as usize][n] = value;
+	let mut list_of_vectors = LIST_OF_VECTORS.lock().unwrap();
+	list_of_vectors[vector_memory[(synapse.output / 2) as usize]][n] = value;
+	drop(list_of_vectors);
 }
 pub fn set_output_neuron_to<'a>(vector_memory: &'a mut  Vec<Vec<f64>>, number_memory: &'a mut  [f64], synapse: &OtherSynapsesStruct, value: KindsOfNeurons){
 	if (synapse.output % 2) == 0{
@@ -591,18 +665,26 @@ pub fn set_output_neuron_to<'a>(vector_memory: &'a mut  Vec<Vec<f64>>, number_me
 	}else{
 		match value {
 			KindsOfNeurons::Scalar(_) => {panic!("mismatch set_output_neuron_to function")},
-			KindsOfNeurons::Vector(vector) => {vector_memory[(synapse.output / 2) as usize] = vector_memory[vector].clone()}  
+			KindsOfNeurons::Vector(vector) => {
+				let mut list_of_vectors = LIST_OF_VECTORS.lock().unwrap();
+				list_of_vectors[vector_memory[(synapse.output / 2) as usize]] = list_of_vectors[vector_memory[vector]].clone();
+				drop(list_of_vectors);
+			}  
 		}
 	}
 }
 pub fn clearing_output_neuron<'a>(vector_memory: &'a mut Vec<Vec<f64>>, synapse: &OtherSynapsesStruct){
 	if(synapse.output % 2) == 1{
-		vector_memory[(synapse.output / 2) as usize].clear();
+		let mut list_of_vectors = LIST_OF_VECTORS.lock().unwrap();
+		list_of_vectors[vector_memory[(synapse.output / 2) as usize]].clear();
+		drop(list_of_vectors);
 	}	
 }
 pub fn adding_to_output_neuron<'a>(vector_memory: &'a mut Vec<Vec<f64>>, synapse: &OtherSynapsesStruct, value: f64){
 	if(synapse.output % 2) == 1{
-		vector_memory[(synapse.output / 2) as usize].push(value);
+		let mut list_of_vectors = LIST_OF_VECTORS.lock().unwrap();
+		list_of_vectors[vector_memory[(synapse.output / 2) as usize]].push(value);
+		drop(list_of_vectors);
 	}		
 } 
 pub fn get_neuron_scalar(neuron: KindsOfNeurons) -> f64{
@@ -629,13 +711,106 @@ pub fn convert_synapse_to_other_synapses_struct(synapse: &Synapse) -> &OtherSyna
 		}
 	}
 }
-pub fn run_synapse_network(synapse_network: &LinkedList<Synapse>, vector_memory: usize, number_memory: &mut [f64]) -> KindsOfNeurons{
+pub fn run_synapse_network(synapse_network: &LinkedList<Synapse>, vector_memory: usize, number_memory: &mut [f64], cardinal_memory: &'a mut [usize], ranking: Option<&mut Vec<f64>>, vector_of_ranking: Option<&mut Vec<LoopRanking>>, patches: Vec<Patch>) -> KindsOfNeurons{
 	let mut iter = synapse_network.iter();
+	let mut i: usize = 0;
 	let mut last = None;
-	while let Some(value) = iter.next(){
-		execute_synapse(vector_memory, number_memory, value);
+	let mut vector_of_patch_vector: LinkedList<PatchVector> = Vec::New();
+	vector_of_ranking.push(Vec::New());
+	while let Some(value) = iter.next(){		
+		let usize_variable = 0;
+		while/*if*/ vector_of_patch_vector.len() > 0{
+			let option1 = None;
+			let option2 = None;
+			let option_output = None;
+			match value{
+				OtherSynapses(other_synapses) => {
+					option_output = Some(other_synapses.output);
+					match other_synapses => {
+						TwoInputSynapse(two_input_synapse) => {
+							option1 = Some(two_input_synapse.input_1);
+							option2 = Some(two_input_synapse.input_2);			
+						}, OneInputSynapse(one_input_synapse) => {
+							option1 = Some(one_input_synapse.input_1);
+						}, ArraySynapse(array_synapse) => {
+							option1 = Some(array_synapse.vector_neuron);							
+						}, _ => {}
+					}
+				}, _ => {
+					continue;
+				}
+			}
+			one_input_synapse = if_one_input_synapse(value);
+			two_input_synapse = if_two_input_synapse(value);
+			array_synapse = if_two_input_synapse(value);
+			/*possibly change this*/
+			for patch_ in vector_of_patch_vector{
+				let patch_vector = patch_.vector;
+				for patch_number in patch_vector{
+					match option1 {
+						Some(value1) => {
+							if value1 == patch_number{
+								patch_.vector.push( if_not_loop_synapse(value).output );
+							}
+						},
+						_ => {
+							Some(value2) => {
+								if value2 == patch_number{
+									patch_.vector.push( if_not_loop_synapse(value).output );
+								}
+							}, _ => {
+								match option_output {
+									Some(value_output) => {
+										if value_output == patch_number{
+											//TODO: Remove the element
+										}										
+									}, 
+									_ => {
+										
+									}
+								}
+							}
+						}, 
+					}
+				} 			
+			}
+			break;
+		}
+		a: for j in 0..(patches.len()) {
+			let patch = patches[j];
+			for input in patch.input {
+				if input == i{
+					for patch_vector in vector_of_patch_vector{
+						if patch_vector.what_patch == j{
+ 							patch_vector.vector.push(if_not_loop_synapse(value).output);		
+						}
+					}					
+					vector_of_patch_vector.push(PatchVector{vector: synapse_network, what_patch: usize_variable, number_arguments: Vec<f64>, vector_arguments: Vec<usize>, cardinal_arguments: Vec<usize>});
+					last = Some(value);
+					i++;		
+					
+				} 	
+			}
+			if patches[patch.what_patch].output == i {
+				let mut list_of_vector_memories = LIST_OF_VECTOR_MEMORIES.lock().unwrap();
+				let length = list_of_vector_memories.len();
+				list_of_vector_memories.push(Vec::New());
+				let mut number_memory = Vec::New();
+				let mut cardinal_memory = Vec::New();
+				drop(list_of_vector_memories);
+				run_synapse_network( patches[patch.what_patch].patch, number_memory, cardinal_memory ); //TODO: fix this	
+			}
+			usize_variable++;
+		}
+		execute_synapse(vector_memory, number_memory, cardinal_memory, value, vector_of_ranking.last().ranking);
+		if vector_of_ranking.last().ranking.len() > 0 {
+			vector_of_ranking.last().index_of_the_loop_synapse = value;		
+			vector_of_ranking.push(Vec::New());
+		}					
 		last = Some(value);
+		i++;
 	}
+	vector_of_ranking.pop();
 	match last{
 		Some(x) => {
 			match x {
