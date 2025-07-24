@@ -10,10 +10,21 @@ pub struct PatchVector{
 	pub number_arguments: Vec<f64>,
 	pub cardinal_arguments: Vec<usize>
 }
+pub struct NodeList{
+	pub length: usize,
+	pub start: Option<Node>,
+	pub end: Option<Node> 
+}
+pub struct Node<T>{
+	pub next: Option<Box<Node>>,
+	pub prev: Option<Box<Node>>,
+	pub value: T
+}
 pub struct Patch{
-	pub input: Vec<usize>,
-	pub output: usize,
-	pub patch: LinkedList<Synapse>,	
+	pub input: Vec<Box<Node<Synapse>>>,
+	pub output: Box<Node<Synapse>>,
+	pub patch: LinkedList<Synapse>,
+	pub insert_after_this: Box<Node<Synapse>> 	
 }
 pub struct LoopRanking{
 	pub ranking: Vec<f64>,
@@ -84,14 +95,13 @@ pub enum Synapse{
 pub enum TwoInputSynapseTypes{
 	Add,
 	Multiply,
-	Divide,
 	EqualTo,
 }
 #[derive(Debug, Copy, Clone)]
 pub enum OneInputSynapseTypes{
-	Copy,
 	IsNegative,
 	Floor,
+	InverseOf
 }
 pub static LIST_OF_VECTOR_MEMORIES: Mutex<Vec<Vec<usize>>>> = Mutex::new(Vec::new());
 pub static LIST_OF_VECTORS: Mutex<Vec<f64>>> = Mutex::new(Vec::new());
@@ -503,16 +513,16 @@ pub fn get_one_input_synapse_kind_property(synapse: &OtherSynapsesStruct) -> &On
 }
 pub fn executing_one_synapse_operation(input: f64, operation: OneInputSynapseTypes) -> f64{
 	match operation{
-		OneInputSynapseTypes::Copy => {
-			input
-		},OneInputSynapseTypes::IsNegative => {
+		OneInputSynapseTypes::IsNegative => {
 			if input < (0 as f64) {
 				1_f64
 			}else{
 				0_f64
 			}
-		},OneInputSynapseTypes::Floor => {
+		}, OneInputSynapseTypes::Floor => {
 			input.floor()
+		}, OneInputSynapseTypes::InverseOf => {
+			1 / input
 		}
 	}
 }
@@ -628,9 +638,6 @@ pub fn execution_binary_operation(input_1: f64, input_2: f64, operation: TwoInpu
 		},
 		TwoInputSynapseTypes::Multiply =>{
 			input_1 * input_2	
-		},
-		TwoInputSynapseTypes::Divide => {
-			input_1 / input_2
 		},
 		TwoInputSynapseTypes::EqualTo => {
 			if input_1 == input_2{

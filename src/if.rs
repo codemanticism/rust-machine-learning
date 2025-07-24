@@ -59,3 +59,13 @@ fn if_not_loop_synapse(synapse: &mut Synapse) -> Option<usize>{
 		}
 	}	
 }
+
+fn if_cardinal_synapse(synapse: &mut Synapse) -> Option<usize>{
+	match synapse{
+		PurelyCardinalSynapse(purely_cardinal_synapse) => {
+			purely_cardinal_synapse.output_neuron
+		}, _ => {
+			None
+		}
+	}	
+}
