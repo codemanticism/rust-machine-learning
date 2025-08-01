@@ -1,4 +1,5 @@
-use std::collections::LinkedList;
+use std::cell::RefCell;
+use std::rc::Rc;
 use std::mem;
 use std::sync::Mutex;
 
@@ -10,11 +11,13 @@ pub struct PatchVector{
 	pub number_arguments: Vec<f64>,
 	pub cardinal_arguments: Vec<usize>
 }
+#[derive(Clone, Debug)]
 pub struct NodeList<T>{
 	pub length: usize,
-	pub start: Option<Rc<RefCell<<Node<T>>>>,
-	pub end: Option<Rc<RefCell<<Node<T>>>> 
+	pub start: Option<Rc<RefCell<Node<T>>>>,
+	pub end: Option<Rc<RefCell<Node<T>>>> 
 }
+#[derive(Debug)]
 pub struct Node<T>{
 	pub next: Option<Rc<RefCell<Node<T>>>>,
 	pub prev: Option<Rc<RefCell<Node<T>>>>,
@@ -113,7 +116,7 @@ pub enum OneInputSynapseTypes{
 	Floor,
 	InverseOf
 }
-pub static LIST_OF_VECTOR_MEMORIES: Mutex<Vec<Vec<usize>>> = Mutex::new(Vec::new());
+pub static LIST_OF_VECTOR_MEMORIESLIST_OF_VECTOR_MEMORIES: Mutex<Vec<Vec<usize>>> = Mutex::new(Vec::new());
 pub static LIST_OF_VECTORS: Mutex<Vec<Vec<f64>>> = Mutex::new(Vec::new());
 pub fn execute_synapse<'a>(vector_memory: usize, number_memory: &'a mut [f64], cardinal_memory: &'a mut [usize], synapse: &Synapse){
 	match synapse {
@@ -755,7 +758,7 @@ pub fn run_synapse_network<'a>(synapse_network: &NodeList<Synapse>, vector_memor
 	let mut synapse: Rc<RefCell<Node<Synapse>>> = synapse_network.start.unwrap();
 	let mut nodelist_vec: Vec<Option<[NodeList< Option<u32> >; 2]>> = vec![None; patches.len()];
 	let mut nodelists = nodelist_vec.into_boxed_slice(); 
-	let mut i: usize = 0; 
+	let mut i: usize = 0;
 /*
 pub struct NodeList{
 	pub length: usize,
@@ -790,12 +793,12 @@ pub struct NodeList{
 															continue 'outerest_loop;
 														} 
 														if (*synapse_).next.is_none(){
-															let node = Node{
-																value: other_synapses_struct.output,
-																next: None,
-																prev: None
-															};
-															Node::link(y[0].end, node);
+															let some_rc = Rc::new(RefCell::new(Node {
+															    value: other_synapses_struct.output,
+															    next: None,
+															    prev: None,
+															}));
+															Node::link(y[0].end.clone(), &some_rc);
 															y[0].end = (*(y[0].end)).unwrap().next;
 															i += 1;
 															continue 'outerest_loop;
@@ -813,23 +816,23 @@ pub struct NodeList{
 											if  one_input_synapse.input == synapse_ {
 												if first_nodelist_none == None{
 													loop{
-														if (*synapse_).value == None {
+														if (*synapse_).value.is_none(){
 															*synapse_.value = Some(other_synapses_struct.output);
 															i += 1;
 															continue 'outerest_loop;
 														} 
-														if (*synapse_).next == None{
-															let node = Node{
-																value: other_synapses_struct.output,
-																next: None,
-																prev: None
-															};
-															Node::link(y[0].end, node);
+														if (*synapse_).next.is_none(){
+															let some_rc = Rc::new(RefCell::new(Node {
+															    value: other_synapses_struct.output,
+															    next: None,
+															    prev: None,
+															}));
+															Node::link(y[0].end.clone(), &some_rc);
 															y[0].end = (*(y[0].end)).unwrap().next;
 															i += 1;
 															continue 'outerest_loop;
 														}
-														synapse_ = Some((*y).next.unwrap());														
+														synapse_ = Some(synapse_.next.unwrap());														
 													}
 													
 												}else{
@@ -842,26 +845,26 @@ pub struct NodeList{
 											if array_synapse.vector_neuron == synapse_{
 												if first_nodelist_none == None{
 													loop{
-														if (*synapse_).value == None {
+														if (*synapse_).value.is_none() {
 															*synapse_.value = Some(other_synapses_struct.output);
 															i += 1;
 															continue 'outerest_loop;
 														} 
-														if (*synapse_).next == None{
-															let node = Node{
-																value: other_synapses_struct.output,
-																next: None,
-																prev: None
-															};
-															Node::link(x[0].end, node);
-															x[0].end = (*(x[0].end)).unwrap().next;
-															let node = Node{
-																value: array_synapse.cardinal_neuron,
-																next: None,
-																prev: None
-															};
-															Node::link(x[1].end, node);
-															x[1].end = (*(x[1].end)).unwrap().next;
+														if (*synapse_).next.is_none(){
+															let some_rc = Rc::new(RefCell::new(Node {
+															    value: other_synapses_struct.output,
+															    next: None,
+															    prev: None,
+															}));
+															Node::link(y[0].end.clone(), &some_rc);
+															y[0].end = (*(y[0].end)).unwrap().next;
+															let some_rc_2 = Rc::new(RefCell::new(Node {
+															    value: other_synapses_struct.output,
+															    next: None,
+															    prev: None,
+															}));
+															Node::link(y[1].end.clone(), &some_rc_2);
+															y[1].end = (*(y[1].end)).unwrap().next;
 															i += 1;
 															continue 'outerest_loop;
 														}
@@ -878,25 +881,25 @@ pub struct NodeList{
 											if write_synapse.number_neuron == synapse_{
 												if first_nodelist_none == None{
 													loop{
-														if (*synapse_).value == None {
+														if (*synapse_).value.is_none() {
 															*synapse_.value = Some(other_synapses_struct.output);
 															continue 'outerest_loop;
 														} 
-														if (*synapse_).next == None{
-															let node = Node{
-																value: other_synapses_struct.output,
-																next: None,
-																prev: None
-															};
-															Node::link(x[0].end, node);
-															x[0].end = (*(x[0].end)).unwrap().next;
-															let node = Node{
-																value: write_synapse.cardinal_neuron,
-																next: None,
-																prev: None
-															};
-															Node::link(x[1].end, node);
-															x[1].end = (*(x[1].end)).unwrap().next;
+														if (*synapse_).next.is_none(){
+															let some_rc = Rc::new(RefCell::new(Node {
+															    value: other_synapses_struct.output,
+															    next: None,
+															    prev: None,
+															}));
+															Node::link(y[0].end.clone(), &some_rc);
+															y[0].end = (*(y[0].end)).unwrap().next;
+															let some_rc_2 = Rc::new(RefCell::new(Node {
+															    value: other_synapses_struct.output,
+															    next: None,
+															    prev: None,
+															}));
+															Node::link(y[1].end.clone(), &some_rc_2);
+															y[1].end = (*(y[1].end)).unwrap().next;
 															continue 'outerest_loop;
 														}
 														synapse_ = (*synapse_).next.unwrap();														
@@ -913,8 +916,8 @@ pub struct NodeList{
 									}
 								},
 								None => {
-									if first_nodelist_none == None {
-										first_nodelist_none = Some(Node<synapse_>);		
+									if first_nodelist_none.is_none() {
+										first_nodelist_none = Some(Rc::new(RefCell::new(synapse_)));		
 									} 
 								}
 							}
@@ -927,18 +930,18 @@ pub struct NodeList{
 							match *synapse_2 {
 								Some(x) => {
 									if purely_cardinal_synapse.cardinal_neuron == *synapse_2.unwrap(){
-										let node = Node{
-											value: purely_cardinal_synapse.cardinal_neuron,
-											next: None,
-											prev: None
-										};
-										Node::link(x[1].end, node);
+										let some_rc = Rc::new(RefCell::new(Node {
+										    value: purely_cardinal_synapse.cardinal_neuron,
+										    next: None,
+										    prev: None,
+										}));
+										Node::link(x[1].end.clone(), &some_rc);
 										x[1].end = (*(x[1].end)).unwrap().next;
 										continue 'outerest_loop; 								
 									}
 								}, None => {
-									if first_nodelist_none_2 == None{
-										first_nodelist_none_2 = Some(Node<synapse_2>);
+									if first_nodelist_none_2.is_none(){
+										first_nodelist_none_2 = Some(Rc::new(RefCell::new(synapse_2)));
 									}
 								}
 							}
@@ -955,7 +958,7 @@ pub struct NodeList{
 			}
 			}
 		}
-		match synapse{
+		match ((*synapse).into_inner()).value{
 			Synapse::OtherSynapsesStruct(other_synapses_struct) => {
 				let mut j = 0;		
 				for patch in patches {
@@ -963,16 +966,16 @@ pub struct NodeList{
 						if argument == i{
 							if nodelists[j].is_none(){
 								let node = Node{value: other_synapses_struct.output, prev: nodelists[j].unwrap()[0].end, next: None};						
-								let pointer = Some( Box<node> );
-								nodelists[j] = Some([ NodeList{ length: 1, start: pointer, end: pointer}; NodeList{length: 0, start: None, end: None} ]);
+								let pointer = Rc::new(RefCell::new(node));
+								nodelists[j] = Some([ NodeList{ length: 1, start: pointer, end: pointer}, NodeList{length: 0, start: None, end: None} ]);
 							}else{
-								let node = Node{
-									value: other_synapses_struct.output,
-									next: None,
-									prev: nodelists[j].unwrap()[0].end
-								};
-								Node::link(nodelists[j].unwrap()[0].end, node);
-								nodelists[j].unwrap()[0].end = (*nodelists[j].unwrap()[0].end).unwrap().next;					
+								let some_rc = Rc::new(RefCell::new(Node {
+								    value: other_synapses_struct.output,
+								    next: None,
+								    prev: None,
+								}));							
+								Node::link(nodelists[j].unwrap()[0].end, &some_rc);
+								nodelists[j].unwrap()[0].end = value.unwrap().next;					
 							}
 						}		
 					}
@@ -984,8 +987,8 @@ pub struct NodeList{
 		}
 		execute_synapse(vector_memory, number_memory, cardinal_memory, &(*synapse).value);
 		i += 1;							
-		if synapse.next.is_none(){
-			synapse = synapse.next.unwrap()
+		if ((*synapse).into_inner()).next.is_none() == false{
+			synapse = ((*synapse).into_inner()).next.unwrap()
 		}else{
 			break;
 		}		
